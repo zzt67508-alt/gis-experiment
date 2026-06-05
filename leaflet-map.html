@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaflet 地图初始化组件</title>
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Microsoft YaHei', sans-serif; }
+    #map { width: 100vw; height: 100vh; }
+    .map-title {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      padding: 8px 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      font-size: 16px;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    .coord-display {
+      position: absolute;
+      bottom: 30px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.85);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="map-title">Leaflet 地图初始化组件 — GIS 全栈开发实验</div>
+  <div id="map"></div>
+  <div class="coord-display" id="coord">鼠标移动以查看经纬度</div>
+
+  <script src="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script>
+    /**
+     * 初始化 Leaflet 地图
+     * @param {string} containerId - 地图容器 DOM ID
+     * @param {Object} options - 地图配置选项
+     * @returns {L.Map} Leaflet 地图实例
+     */
+    function initLeafletMap(containerId, options = {}) {
+      const defaults = {
+        center: [29.56, 106.55],
+        zoom: 13,
+        minZoom: 3,
+        maxZoom: 18,
+        zoomControl: true,
+        attributionControl: true
+      };
+
+      const config = Object.assign({}, defaults, options);
+
+      const map = L.map(containerId, {
+        center: config.center,
+        zoom: config.zoom,
+        minZoom: config.minZoom,
+        maxZoom: config.maxZoom,
+        zoomControl: config.zoomControl,
+        attributionControl: config.attributionControl
+      });
+
+      const tileLayer = L.tileLayer(
+        'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+        {
+          subdomains: ['1', '2', '3', '4'],
+          attribution:
+            '&copy; <a href="https://www.amap.com/">高德地图</a>'
+        }
+      );
+      tileLayer.addTo(map);
+
+      L.control.scale({
+        metric: true,
+        imperial: false,
+        position: 'bottomright'
+      }).addTo(map);
+
+      return map;
+    }
+
+    // 实例化
+    const map = initLeafletMap('map', { zoom: 14 });
+
+    // 鼠标坐标联动
+    const coordDisplay = document.getElementById('coord');
+    map.on('mousemove', function (e) {
+      const lat = e.latlng.lat.toFixed(6);
+      const lng = e.latlng.lng.toFixed(6);
+      coordDisplay.textContent = `经度: ${lng}  纬度: ${lat}`;
+    });
+
+    // 点击添加标记
+    map.on('click', function (e) {
+      L.marker([e.latlng.lat, e.latlng.lng])
+        .addTo(map)
+        .bindPopup(`<b>标记点</b><br>经度: ${e.latlng.lng.toFixed(6)}<br>纬度: ${e.latlng.lat.toFixed(6)}`)
+        .openPopup();
+    });
+
+    console.log('Leaflet 地图组件初始化完成');
+  </script>
+</body>
+</html>

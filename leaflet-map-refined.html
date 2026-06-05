@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaflet 专业地图组件（精化版）</title>
+
+  <!-- ========== Leaflet CSS（BootCDN 国内镜像） ========== -->
+  <link rel="stylesheet"
+        id="leaflet-css"
+        href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.css" />
+
+  <style>
+    /* ===== 全局重置 ===== */
+    *, *::before, *::after {
+      margin: 0; padding: 0; box-sizing: border-box;
+    }
+    html, body {
+      width: 100%; height: 100%;
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ===== 地图容器 ===== */
+    #map {
+      width: 100%;
+      height: calc(100% - 40px);  /* 底部留出信息栏高度 */
+    }
+
+    /* ===== 底部信息栏（Flexbox，响应式） ===== */
+    .info-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 40px;
+      padding: 0 16px;
+      background: #2c3e50;
+      color: #ecf0f1;
+      font-size: 13px;
+      gap: 12px;
+      z-index: 1000;
+    }
+    .info-bar .group {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .info-bar .label {
+      color: #95a5a6;
+    }
+    .info-bar .value {
+      color: #1abc9c;
+      font-weight: bold;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
+    /* 1366px 及以下：缩小字体 */
+    @media (max-width: 1366px) {
+      .info-bar {
+        font-size: 11px;
+        padding: 0 10px;
+        gap: 8px;
+      }
+      .info-bar .group { gap: 12px; }
+    }
+    /* 1920px 及以上：增大字体 */
+    @media (min-width: 1920px) {
+      .info-bar {
+        font-size: 14px;
+        padding: 0 24px;
+      }
+    }
+
+    /* ===== 自定义悬浮按钮（右上） ===== */
+    .custom-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2000;
+      width: 34px; height: 34px;
+      background: #fff;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transition: background 0.2s, transform 0.2s;
+      user-select: none;
+    }
+    .custom-btn:hover {
+      background: #f0f0f0;
+      transform: scale(1.05);
+    }
+    .custom-btn:active {
+      background: #ddd;
+    }
+
+    /* ===== CDN 加载失败降级提示 ===== */
+    .fallback-error {
+      display: none;
+      width: 100vw; height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f8f9fa;
+      color: #333;
+      text-align: center;
+    }
+    .fallback-error h2 { color: #e74c3c; margin-bottom: 12px; }
+    .fallback-error p  { color: #555; font-size: 14px; }
+    .fallback-error code { background: #eee; padding: 2px 8px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <!-- ========== 主界面 ========== -->
+  <div id="map"></div>
+
+  <!-- 底部信息栏 -->
+  <div class="info-bar" id="info-bar">
+    <div class="group">
+      <span><span class="label">经度</span> <span class="value" id="info-lng">--</span></span>
+      <span><span class="label">纬度</span> <span class="value" id="info-lat">--</span></span>
+    </div>
+    <div class="group">
+      <span><span class="label">缩放级别</span> <span class="value" id="info-zoom">14</span></span>
+      <span><span class="label">标记数</span> <span class="value" id="info-markers">0</span></span>
+    </div>
+  </div>
+
+  <!-- 自定义复位按钮（右上角） -->
+  <div class="custom-btn" id="btn-home" title="回到重庆中心">&#8962;</div>
+
+  <!-- CDN 加载失败降级提示 -->
+  <div class="fallback-error" id="fallback-error">
+    <h2>Leaflet 地图加载失败</h2>
+    <p>请检查网络连接后刷新页面，或检查 CDN 资源是否可访问</p>
+    <p>预期加载：<code>cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/</code></p>
+  </div>
+
+  <!-- ========== Leaflet JS（BootCDN 国内镜像） ========== -->
+  <script id="leaflet-js"
+          src="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.js">
+  </script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ========== CDN 加载检测 ==========
+    if (typeof L === 'undefined') {
+      document.getElementById('fallback-error').style.display = 'flex';
+      return;  // 终止执行，避免报错连锁
+    }
+
+    // ========== 常量 ==========
+    var CHONGQING_CENTER = [29.56, 106.55];     // 重庆中心点
+    var MAX_MARKERS       = 5;                  // 标记数量上限
+    var DEFAULT_ZOOM      = 14;                 // 默认缩放
+
+    // ========== DOM 缓存 ==========
+    var infoLng    = document.getElementById('info-lng');
+    var infoLat    = document.getElementById('info-lat');
+    var infoZoom   = document.getElementById('info-zoom');
+    var infoMarkers= document.getElementById('info-markers');
+    var btnHome    = document.getElementById('btn-home');
+
+    // ========== 地图初始化 ==========
+    var vectorLayer = L.tileLayer(
+      'https://webrd0{s}.is.autonavi.com/appmaptile' +
+      '?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+      { subdomains: ['1', '2', '3', '4'], maxZoom: 18 }
+    );
+
+    var satelliteLayer = L.tileLayer(
+      'https://webst0{s}.is.autonavi.com/appmaptile' +
+      '?lang=zh_cn&size=1&scale=1&style=6&x={x}&y={y}&z={z}',
+      { subdomains: ['1', '2', '3', '4'], maxZoom: 18 }
+    );
+
+    var baseMaps = {
+      '高德矢量图': vectorLayer,
+      '高德卫星图': satelliteLayer
+    };
+
+    var map = L.map('map', {
+      center: CHONGQING_CENTER,
+      zoom: DEFAULT_ZOOM,
+      zoomControl: true,
+      layers: [vectorLayer]                      // 默认矢量图
+    });
+
+    // 图层切换控件
+    L.control.layers(baseMaps, null, {
+      position: 'topleft',
+      collapsed: true                            // 折叠，不遮挡视野
+    }).addTo(map);
+
+    // 比例尺
+    L.control.scale({
+      metric: true, imperial: false, position: 'bottomleft'
+    }).addTo(map);
+
+    // ========== 标记管理层 ==========
+    var markerQueue = [];                        // FIFO 队列
+
+    /**
+     * 添加标记（队列上限 MAX_MARKERS，超出删最早）
+     * @param {number} lat
+     * @param {number} lng
+     */
+    function addMarker(lat, lng) {
+      var marker = L.marker([lat, lng]).addTo(map)
+        .bindPopup(
+          '<b>标记点</b><br>' +
+          '经度: ' + lng.toFixed(6) + '<br>' +
+          '纬度: ' + lat.toFixed(6)
+        )
+        .openPopup();
+
+      markerQueue.push(marker);
+      if (markerQueue.length > MAX_MARKERS) {
+        var oldest = markerQueue.shift();
+        map.removeLayer(oldest);                 // 移除最早标记
+      }
+      updateMarkerCount();
+    }
+
+    /** 更新信息栏标记计数 */
+    function updateMarkerCount() {
+      infoMarkers.textContent = markerQueue.length;
+    }
+
+    // ========== 事件交互 ==========
+
+    // 点击地图添加标记
+    map.on('click', function (e) {
+      addMarker(e.latlng.lat, e.latlng.lng);
+    });
+
+    // mousemove 坐标更新（requestAnimationFrame 节流）
+    var rafId = null;
+    var lastLatlng = null;
+    map.on('mousemove', function (e) {
+      lastLatlng = e.latlng;
+      if (!rafId) {
+        rafId = requestAnimationFrame(function () {
+          if (lastLatlng) {
+            infoLng.textContent = lastLatlng.lng.toFixed(6);
+            infoLat.textContent = lastLatlng.lat.toFixed(6);
+          }
+          rafId = null;
+        });
+      }
+    });
+
+    // 缩放级别联动
+    map.on('zoomend', function () {
+      infoZoom.textContent = map.getZoom();
+    });
+
+    // 复位按钮：回到重庆中心 + 恢复默认缩放
+    btnHome.addEventListener('click', function () {
+      map.setView(CHONGQING_CENTER, DEFAULT_ZOOM, {
+        animate: true,
+        duration: 0.6                         // 平滑过渡 0.6s
+      });
+    });
+
+    // ========== 暴露调试接口（模块化，不挂 window） ==========
+    if (window.console) {
+      console.log('%c[Leaflet 精化版] 初始化完成', 'color:#1abc9c');
+      console.log('  底图: 高德矢量瓦片 (BootCDN)');
+      console.log('  中心: 重庆 [' + CHONGQING_CENTER + ']');
+      console.log('  图层: 矢量图 / 卫星图切换');
+      console.log('  标记: 上限 ' + MAX_MARKERS + ' 个 (FIFO)');
+      console.log('  事件节流: requestAnimationFrame');
+    }
+  })();
+  </script>
+</body>
+</html>
