@@ -101,6 +101,33 @@
       background: #ddd;
     }
 
+    /* ===== 透明度滑块（右上第二个按钮下方） ===== */
+    .opacity-control {
+      position: absolute;
+      top: 52px;
+      right: 10px;
+      z-index: 2000;
+      background: #fff;
+      padding: 8px 10px;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      user-select: none;
+    }
+    .opacity-control label {
+      color: #333;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .opacity-control input[type="range"] {
+      width: 100px;
+      cursor: pointer;
+    }
+
     /* ===== CDN 加载失败降级提示 ===== */
     .fallback-error {
       display: none;
@@ -136,6 +163,12 @@
 
   <!-- 自定义复位按钮（右上角） -->
   <div class="custom-btn" id="btn-home" title="回到重庆中心">&#8962;</div>
+
+  <!-- 图层透明度控制（复位按钮下方） -->
+  <div class="opacity-control">
+    <label>图层透明度</label>
+    <input type="range" id="opacity-slider" min="0" max="100" value="100" step="5" />
+  </div>
 
   <!-- CDN 加载失败降级提示 -->
   <div class="fallback-error" id="fallback-error">
@@ -206,6 +239,14 @@
     L.control.scale({
       metric: true, imperial: false, position: 'bottomleft'
     }).addTo(map);
+
+    // ========== 图层透明度控制 ==========
+    var opacitySlider = document.getElementById('opacity-slider');
+    opacitySlider.addEventListener('input', function () {
+      var opacity = parseFloat(this.value) / 100;
+      vectorLayer.setOpacity(opacity);
+      satelliteLayer.setOpacity(opacity);
+    });
 
     // ========== 标记管理层 ==========
     var markerQueue = [];                        // FIFO 队列
