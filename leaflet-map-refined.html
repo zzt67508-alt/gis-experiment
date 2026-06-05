@@ -142,6 +142,24 @@
     .fallback-error h2 { color: #e74c3c; margin-bottom: 12px; }
     .fallback-error p  { color: #555; font-size: 14px; }
     .fallback-error code { background: #eee; padding: 2px 8px; border-radius: 3px; }
+
+    /* ===== 图例说明面板（左下） ===== */
+    .legend-panel {
+      position: absolute;
+      bottom: 50px;
+      left: 10px;
+      z-index: 2000;
+      background: rgba(255,255,255,0.92);
+      padding: 10px 14px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+      font-size: 12px;
+      line-height: 1.6;
+      user-select: none;
+      pointer-events: none;
+    }
+    .legend-panel b { color: #2c3e50; }
+    .legend-panel span { color: #e74c3c; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -159,6 +177,14 @@
       <span><span class="label">缩放级别</span> <span class="value" id="info-zoom">14</span></span>
       <span><span class="label">标记数</span> <span class="value" id="info-markers">0</span></span>
     </div>
+  </div>
+
+  <!-- 图例说明面板（左下） -->
+  <div class="legend-panel">
+    <b>操作说明</b><br>
+    &bull; <span>点击</span> 地图添加标记（≤5）<br>
+    &bull; <span>拖拽</span> 查看区域 &bull; <span>滚轮</span> 缩放<br>
+    &bull; 右上 <span>⌂</span> 复位 &bull; 左上切换底图
   </div>
 
   <!-- 自定义复位按钮（右上角） -->
